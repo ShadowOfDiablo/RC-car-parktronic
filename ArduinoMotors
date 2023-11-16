@@ -204,5 +204,5 @@ bool isSafeToMoveBackward() {
   // Check the sensor readings and return true if it's safe, false otherwise
   // Implement your logic here based on the sensor readings
   // For example, you might check if all sensors detect a distance greater than SAFE_DISTANCE
-  return (LeftSensor > SAFE_DISTANCE) && (FrontSensor > SAFE_DISTANCE) && (RightSensor > SAFE_DISTANCE);
+  return (LeftSensor > 10) && (FrontSensor > 10) && (RightSensor > 10);
 }

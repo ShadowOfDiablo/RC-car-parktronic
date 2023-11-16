@@ -1,8 +1,6 @@
-//including the libraries
-#include <SoftwareSerial.h> // TX RX software library for bluetooth
+#include <SoftwareSerial.h>
 #include <LEDFader.h>
 
-//Defining pins for RGB led
 #define GREEN 13
 #define BLUE 5
 #define RED 4
@@ -14,40 +12,28 @@ LEDFader leds[LED_NUM] = {
   LEDFader(13)
 };
 
-//Initializing pins for bluetooth Module
-int bluetoothTx = 2; // bluetooth tx to 2 pin
-int bluetoothRx = 3; // bluetooth rx to 3 pin
+int bluetoothTx = 2;
+int bluetoothRx = 3;
 SoftwareSerial bluetooth(bluetoothTx, bluetoothRx);
 
-//Front Motor Pins  
 int Enable1 = 6;
 int Motor1_Pin1 = 7;  
 int Motor1_Pin2 = 8;  
-
-//Back Motor Pins      
 int Motor2_Pin1 = 9; 
 int Motor2_Pin2 = 10;
 int Enable2 = 11; 
-
-//Front Light pins   
 int front_light1 = A0;
 int front_light2 = A1;
-
-//Back light pins
 int back_light1 = A2;
 int back_light2 = A3;
 int horn = 12;
 
-char command ; //variable to store the data
-int velocity = 0; //Variable to control the speed of motor
+char command;
+int velocity = 0;
 
-void setup() 
-{       
-  //Set the baud rate of serial communication and bluetooth module at same rate.
-  Serial.begin(9600);  
+void setup() {
+  Serial.begin(9600);
   bluetooth.begin(9600);
-
-  //Setting the L298N, LED and RGB LED pins as output pins.
   pinMode(Motor1_Pin1, OUTPUT);  
   pinMode(Motor1_Pin2, OUTPUT);
   pinMode(Enable1, OUTPUT);
@@ -63,7 +49,6 @@ void setup()
   pinMode(BLUE, OUTPUT);
   pinMode(RED, OUTPUT);
 
-  //Setting the enable and RGB LED pins as HIGH.
   digitalWrite(Enable1, HIGH);
   digitalWrite(Enable2, HIGH);
   digitalWrite(GREEN, HIGH);
@@ -71,149 +56,153 @@ void setup()
   digitalWrite(RED, HIGH);
 }
 
-void loop(){
-  if(bluetooth.available() > 0){  //Checking if there is some data available or not
-    if(Serial.available()>0){
-      String recievedData = Serial.readStringUntil('\n');
-      int firstValue = receivedData.substring(0,receivedData.idexOf(',')).toInt();
-      receivedData.remove(0,receivedData.indexOf(',')+1);
-      int secondValue = receivedData.substring(0,receivedData.idexOf(',')).toInt();
-      receivedData.remove(0,receivedData.indexOf(',')+1);
-      int thirdValue = receivedData.substring(0,receivedData.idexOf(',')).toInt();
-      receivedData.remove(0,receivedData.indexOf(',')+1);
+void loop() {
+  if (bluetooth.available() > 0) {
+    command = bluetooth.read();
+    Serial.println(command);
+    handleCommand(command);
+  }
+
+  RGB();
+}
+
+void RGB() {
+  // Update all LEDs and start new fades if any are done
+  for (byte i = 0; i < LED_NUM; i++) {
+    LEDFader *led = &leds[i];
+    led->update();
+
+    if (led->is_fading() == false) {
+      int duration = random(1000, 3000);
+      
+      if (led->get_value() == 0) {
+        byte intensity = random(100, 255);
+        led->fade(intensity, duration);
+      } else {
+        led->fade(0, duration);
+      }
     }
-    command = bluetooth.read();   //Storing the data in the 'command' variable
-    Serial.println(command);      //Printing it on the serial monitor
-    
-    //Change pin mode only if new command is different from previous.   
-    switch(command){
-    case 'F':  //Moving the Car Forward
+  }
+}
+
+void handleCommand(char cmd) {
+  switch (cmd) {
+    case 'F':  // Moving the Car Forward
       digitalWrite(Motor2_Pin1, HIGH);
       digitalWrite(Motor2_Pin2, LOW);
       digitalWrite(Motor1_Pin1, HIGH);
       digitalWrite(Motor1_Pin2, LOW);
       break;
-    case 'B':  //Moving the Car Backward
-      digitalWrite(Motor2_Pin1, LOW);
-      digitalWrite(Motor2_Pin2, HIGH);
-      digitalWrite(Motor1_Pin1, LOW);
-      digitalWrite(Motor1_Pin2, HIGH);
+
+    case 'B':  // Moving the Car Backward
+      if (isSafeToMoveBackward()) {
+        digitalWrite(Motor2_Pin1, LOW);
+        digitalWrite(Motor2_Pin2, HIGH);
+        digitalWrite(Motor1_Pin1, LOW);
+        digitalWrite(Motor1_Pin2, HIGH);
+      } else {
+        // If it's not safe, stop the car
+        digitalWrite(Motor2_Pin2, LOW);
+        digitalWrite(Motor2_Pin1, LOW);
+        digitalWrite(Motor1_Pin2, LOW);
+        digitalWrite(Motor1_Pin1, LOW);
+      }
       break;
-    case 'L':  //Moving the Car Left
+
+    case 'L':  // Moving the Car Left
       digitalWrite(Motor2_Pin1, HIGH);
       digitalWrite(Motor2_Pin2, LOW);
       digitalWrite(Motor1_Pin1, LOW);
       digitalWrite(Motor1_Pin2, LOW);
       break;
-    case 'R':   //Moving the Car Right
+
+    case 'R':  // Moving the Car Right
       digitalWrite(Motor1_Pin2, LOW);
       digitalWrite(Motor1_Pin1, HIGH);  
       digitalWrite(Motor2_Pin1, LOW);
       digitalWrite(Motor2_Pin2, LOW);
       break;
-    case 'S':   //Stop
+
+    case 'S':  // Stop
       digitalWrite(Motor2_Pin2, LOW);
       digitalWrite(Motor2_Pin1, LOW);
       digitalWrite(Motor1_Pin2, LOW);
       digitalWrite(Motor1_Pin1, LOW);
       break; 
-    case 'I':  //Moving the Car Forward right
+
+    case 'I':  // Moving the Car Forward right
       digitalWrite(Motor2_Pin2, LOW);
       digitalWrite(Motor2_Pin1, HIGH);
       digitalWrite(Motor1_Pin2, LOW);
       digitalWrite(Motor1_Pin1, HIGH);
       break; 
-    case 'J':  //Moving the Car backward right
+
+    case 'J':  // Moving the Car backward right
       digitalWrite(Motor1_Pin2, LOW);
       digitalWrite(Motor1_Pin1, HIGH);
       digitalWrite(Motor2_Pin1, LOW);
       digitalWrite(Motor2_Pin2, HIGH);
       break;        
-    case 'G':  //Moving the Car Forward left
+
+    case 'G':  // Moving the Car Forward left
       digitalWrite(Motor2_Pin2, LOW);
       digitalWrite(Motor2_Pin1, HIGH);
       digitalWrite(Motor1_Pin1, LOW);
       digitalWrite(Motor1_Pin2, HIGH);
       break; 
-    case 'H':  //Moving the Car backward left
+
+    case 'H':  // Moving the Car backward left
       digitalWrite(Motor2_Pin1, LOW);
       digitalWrite(Motor2_Pin2, HIGH);
       digitalWrite(Motor1_Pin1, LOW);
       digitalWrite(Motor1_Pin2, HIGH);
       break;
-    case 'W':  //Front light ON 
+
+    case 'W':  // Front light ON 
       digitalWrite(front_light1, HIGH);
       digitalWrite(front_light2, HIGH);
       break;
-    case 'w':  //Front light OFF
+
+    case 'w':  // Front light OFF
       digitalWrite(front_light1, LOW);
       digitalWrite(front_light2, LOW);
       break;
-    case 'U':  //Back light ON 
+
+    case 'U':  // Back light ON 
       digitalWrite(back_light1, HIGH);
       digitalWrite(back_light2, HIGH);
       break;
-    case 'u':  //Back light OFF 
+
+    case 'u':  // Back light OFF 
       digitalWrite(back_light1, LOW);
       digitalWrite(back_light2, LOW);
       break; 
-    case 'V':  //Horn On
+
+    case 'V':  // Horn On
       tone(horn,494);
       break; 
-    case 'v':  //Horn OFF 
+
+    case 'v':  // Horn OFF 
        noTone(horn);
       break;   
-    case 'x': //Turn ON Everything
-
-    break;
-    case 'X': //Turn OFF Everything
       
-    break;
+    case 'x': // Turn ON Everything
+      // Add your code for turning ON everything
+      break;
 
-    //Controlling the Speed of Car  
-    default:  //Get velocity
-      if(command=='q'){
-        velocity = 255;  //Full velocity
-        analogWrite(Enable2, velocity);
-      }
-      else{ 
-        //Chars '0' - '9' have an integer equivalence of 48 - 57, accordingly.
-        if((command >= 48) && (command <= 57)){ 
-          //Subtracting 48 changes the range from 48-57 to 0-9.
-          //Multiplying by 25 changes the range from 0-9 to 0-225.
-          velocity = (command - 48)*25;       
-          analogWrite(Enable2, velocity);
-        }
-      }
-      }
-    }
-     RGB();
-  } 
+    case 'X': // Turn OFF Everything
+      // Add your code for turning OFF everything
+      break;
 
-  void RGB()
-{
-    // Update all LEDs and start new fades if any are done
-  for (byte i = 0; i < LED_NUM; i++) 
-  {
-    LEDFader *led = &leds[i];
-    led->update();
- 
-    // This LED is not fading, start a new fade
-    if (led->is_fading() == false) 
-    {
-      int duration = random(1000, 3000); // between 1 - 3 seconds
- 
-      // Fade Up
-      if (led->get_value() == 0) 
-      {
-        byte intensity = random(100, 255);
-        led->fade(intensity, duration);
-      }
-      // Fade Down
-      else 
-      {
-        led->fade(0, duration);
-      }
-    }
+    default:
+      // Handle any other commands or actions you may need
+      break;
   }
- }
+}
+
+bool isSafeToMoveBackward() {
+  // Check the sensor readings and return true if it's safe, false otherwise
+  // Implement your logic here based on the sensor readings
+  // For example, you might check if all sensors detect a distance greater than SAFE_DISTANCE
+  return (LeftSensor > SAFE_DISTANCE) && (FrontSensor > SAFE_DISTANCE) && (RightSensor > SAFE_DISTANCE);
+}

@@ -1,0 +1,141 @@
+//including the libraries
+#include <SoftwareSerial.h> // TX RX software library for bluetooth
+#include <LEDFader.h>
+
+//Initializing pins for bluetooth Module
+int bluetoothTx = 2; // bluetooth tx to 2 pin
+int bluetoothRx = 3; // bluetooth rx to 3 pin
+SoftwareSerial bluetooth(bluetoothTx, bluetoothRx);
+long duration, distance, RightSensor, FrontSensor, LeftSensor;
+int tr1 = 12;
+int echo1 = 13;
+int tr2 = 5;
+int echo2 = 4;
+unsigned int ADCValue;
+//Front Motor Pins  
+int Enable1 = 6;
+int Motor1_Pin1 = 7;  
+int Motor1_Pin2 = 8;  
+
+//Back Motor Pins      
+int Motor2_Pin1 = 9; 
+int Motor2_Pin2 = 10;
+int Enable2 = 11; 
+
+char command ; //variable to store the data
+int velocity = 0; //Variable to control the speed of motor
+
+void setup() 
+{       
+  //Set the baud rate of serial communication and bluetooth module at same rate.
+  Serial.begin(9600);  
+  bluetooth.begin(9600);
+
+  //Setting the L298N, LED and RGB LED pins as output pins.
+  pinMode(Motor1_Pin1, OUTPUT);  
+  pinMode(Motor1_Pin2, OUTPUT);
+  pinMode(Enable1, OUTPUT);
+  pinMode(Motor2_Pin1, OUTPUT);  
+  pinMode(Motor2_Pin2, OUTPUT);
+  pinMode(Enable2, OUTPUT); 
+  pinMode(tr1, OUTPUT); 
+  pinMode(echo1, INPUT);
+  pinMode(tr2, OUTPUT);
+  pinMode(echo2, INPUT);
+
+  //Setting the enable and RGB LED pins as HIGH.
+  digitalWrite(Enable1, HIGH);
+  digitalWrite(Enable2, HIGH);
+}
+
+void loop(){
+  if(bluetooth.available() > 0){  //Checking if there is some data available or not
+    command = bluetooth.read();   //Storing the data in the 'command' variable
+    Serial.println(command);      //Printing it on the serial monitor
+    //Change pin mode only if new command is different from previous.   
+    switch(command){
+    case 'F':  //Moving the Car Forward
+      SonarSensor(tr1, echo1);
+      LeftSensor = distance;
+      SonarSensor(tr2, echo2);
+      FrontSensor = distance;
+      RightSensor = (analogRead(0)/2)/29.1;
+      Serial.print(LeftSensor);
+      Serial.print(",");
+      Serial.print(FrontSensor);
+      Serial.print(",");
+      Serial.println(RightSensor);
+      if( LeftSensor <= 20 ||FrontSensor <= 20){
+        Serial.println("Going in");
+        digitalWrite(Motor2_Pin2, LOW);
+        digitalWrite(Motor2_Pin1, LOW);
+        digitalWrite(Motor1_Pin1, LOW);
+        digitalWrite(Motor1_Pin2, LOW);
+      }else{
+        digitalWrite(Motor2_Pin2, LOW);
+        digitalWrite(Motor2_Pin1, HIGH);
+        digitalWrite(Motor1_Pin1, HIGH);
+        digitalWrite(Motor1_Pin2, LOW);
+      };
+      break;
+    case 'B':  //Moving the Car Backward
+      digitalWrite(Motor2_Pin2, HIGH);
+      digitalWrite(Motor2_Pin1, LOW);
+      digitalWrite(Motor1_Pin1, LOW);
+      digitalWrite(Motor1_Pin2, HIGH);
+      break;
+    case 'L':  //Moving the Car Left
+      digitalWrite(Motor2_Pin2, LOW);
+      digitalWrite(Motor2_Pin1, HIGH);
+      digitalWrite(Motor1_Pin1, LOW);
+      digitalWrite(Motor1_Pin2, LOW);
+      break;
+    case 'R':   //Moving the Car Right
+      digitalWrite(Motor2_Pin2, LOW);
+      digitalWrite(Motor2_Pin1, LOW);
+      digitalWrite(Motor1_Pin1, HIGH);
+      digitalWrite(Motor1_Pin2, LOW);
+      break;
+    case 'S':   //Stop
+      digitalWrite(Motor2_Pin2, LOW);
+      digitalWrite(Motor2_Pin1, LOW);
+      digitalWrite(Motor1_Pin2, LOW);
+      digitalWrite(Motor1_Pin1, LOW);
+      break; 
+    case 'I':  //Moving the Car Forward right
+      digitalWrite(Motor2_Pin2, HIGH);
+      digitalWrite(Motor2_Pin1, LOW);
+      digitalWrite(Motor1_Pin1, HIGH);
+      digitalWrite(Motor1_Pin2, LOW);
+      break; 
+    case 'J':  //Moving the Car backward right
+      digitalWrite(Motor1_Pin2, LOW);
+      digitalWrite(Motor1_Pin1, HIGH);
+      digitalWrite(Motor2_Pin1, LOW);
+      digitalWrite(Motor2_Pin2, HIGH);
+      break;        
+    case 'G':  //Moving the Car Forward left
+      digitalWrite(Motor2_Pin2, LOW);
+      digitalWrite(Motor2_Pin1, HIGH);
+      digitalWrite(Motor1_Pin1, LOW);
+      digitalWrite(Motor1_Pin2, HIGH);
+      break; 
+    case 'H':  //Moving the Car backward left
+      digitalWrite(Motor2_Pin1, LOW);
+      digitalWrite(Motor2_Pin2, HIGH);
+      digitalWrite(Motor1_Pin1, LOW);
+      digitalWrite(Motor1_Pin2, HIGH);
+      break;
+    //Controlling the Speed of Car  
+    default:  //Get velocity
+      break;
+    }
+    }
+  } 
+  void SonarSensor(int trigPin, int echoPin) {
+    digitalWrite(trigPin, LOW);
+    digitalWrite(trigPin, HIGH);
+    digitalWrite(trigPin, LOW);
+    duration = pulseIn(echoPin, HIGH);
+    distance = (duration/2)/29.1;
+  }

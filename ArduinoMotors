@@ -17,12 +17,12 @@ int Motor2_Pin2 = 10;
 int Enable2 = 11;
 
 // Ultrasonic sensor pins
-int trigPin1 = A4;
-int echoPin1 = A5;
-int trigPin2 = 13;  // Change to the appropriate pin
-int echoPin2 = 12;  // Change to the appropriate pin
-int trigPin3 = 11;  // Change to the appropriate pin
-int echoPin3 = 10;  // Change to the appropriate pin
+int trigPin1 = A5;   // Adjusted for Arduino Uno
+int echoPin1 = A6;   // Adjusted for Arduino Uno
+int trigPin2 = A0;   // Adjusted for Arduino Uno
+int echoPin2 = A1;   // Adjusted for Arduino Uno
+int trigPin3 = A2;   // Adjusted for Arduino Uno
+int echoPin3 = A3;   // Adjusted for Arduino Uno
 
 char command; // variable to store the data
 int velocity = 0; // Variable to control the speed of motor

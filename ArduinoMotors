@@ -1,208 +1,260 @@
-#include <SoftwareSerial.h>
-#include <LEDFader.h>
+// including the libraries
+#include <SoftwareSerial.h> // TX RX software library for Bluetooth
 
-#define GREEN 13
-#define BLUE 5
-#define RED 4
-#define delayTime 3
-#define LED_NUM 3
-LEDFader leds[LED_NUM] = {
-  LEDFader(4),
-  LEDFader(5),
-  LEDFader(13)
-};
-
-int bluetoothTx = 2;
-int bluetoothRx = 3;
+// Initializing pins for Bluetooth Module
+int bluetoothTx = 2; // Bluetooth tx to 2 pin
+int bluetoothRx = 3; // Bluetooth rx to 3 pin
 SoftwareSerial bluetooth(bluetoothTx, bluetoothRx);
 
+// Front Motor Pins
 int Enable1 = 6;
-int Motor1_Pin1 = 7;  
-int Motor1_Pin2 = 8;  
-int Motor2_Pin1 = 9; 
+int Motor1_Pin1 = 7;
+int Motor1_Pin2 = 8;
+
+// Back Motor Pins
+int Motor2_Pin1 = 9;
 int Motor2_Pin2 = 10;
-int Enable2 = 11; 
-int front_light1 = A0;
-int front_light2 = A1;
-int back_light1 = A2;
-int back_light2 = A3;
-int horn = 12;
+int Enable2 = 11;
 
-char command;
-int velocity = 0;
+// Ultrasonic sensor pins
+int trigPin1 = A4;
+int echoPin1 = A5;
+int trigPin2 = 13;  // Change to the appropriate pin
+int echoPin2 = 12;  // Change to the appropriate pin
+int trigPin3 = 11;  // Change to the appropriate pin
+int echoPin3 = 10;  // Change to the appropriate pin
 
-void setup() {
+char command; // variable to store the data
+int velocity = 0; // Variable to control the speed of motor
+
+void setup()
+{
+  // Set the baud rate of serial communication and Bluetooth module at the same rate.
   Serial.begin(9600);
   bluetooth.begin(9600);
-  pinMode(Motor1_Pin1, OUTPUT);  
+
+  // Setting the L298N and LED pins as output pins.
+  pinMode(Motor1_Pin1, OUTPUT);
   pinMode(Motor1_Pin2, OUTPUT);
   pinMode(Enable1, OUTPUT);
-  pinMode(Motor2_Pin1, OUTPUT);  
+  pinMode(Motor2_Pin1, OUTPUT);
   pinMode(Motor2_Pin2, OUTPUT);
-  pinMode(Enable2, OUTPUT); 
-  pinMode(front_light1, OUTPUT);  
-  pinMode(back_light1, OUTPUT);
-  pinMode(front_light2, OUTPUT);  
-  pinMode(back_light2, OUTPUT);
-  pinMode(horn, OUTPUT);
-  pinMode(GREEN, OUTPUT);
-  pinMode(BLUE, OUTPUT);
-  pinMode(RED, OUTPUT);
-
-  digitalWrite(Enable1, HIGH);
-  digitalWrite(Enable2, HIGH);
-  digitalWrite(GREEN, HIGH);
-  digitalWrite(BLUE, HIGH);
-  digitalWrite(RED, HIGH);
+  pinMode(Enable2, OUTPUT);
 }
 
-void loop() {
-  if (bluetooth.available() > 0) {
+void loop()
+{
+  // Read ultrasonic sensors
+  float distance1 = readUltrasonicSensor(trigPin1, echoPin1);
+  float distance2 = readUltrasonicSensor(trigPin2, echoPin2);
+  float distance3 = readUltrasonicSensor(trigPin3, echoPin3);
+
+  // Check if any sensor is less than 10 cm away
+  if (distance1 < 10 || distance2 < 10 || distance3 < 10)
+  {
+    // Stop the car if an obstacle is detected and it's not moving backward
+    if (command != 'B')
+    {
+      stopCar();
+    }
+  }
+  else
+  {
+    // Continue processing Bluetooth commands
+    processBluetoothCommands();
+  }
+}
+
+float readUltrasonicSensor(int trigPin, int echoPin)
+{
+  // Trigger ultrasonic sensor
+  digitalWrite(trigPin, LOW);
+  delayMicroseconds(2);
+  digitalWrite(trigPin, HIGH);
+  delayMicroseconds(10);
+  digitalWrite(trigPin, LOW);
+
+  // Read the echo pin
+  float duration = pulseIn(echoPin, HIGH);
+
+  // Calculate distance in centimeters
+  float distance = duration * 0.034 / 2;
+
+  return distance;
+}
+
+void processBluetoothCommands()
+{
+  if (bluetooth.available() > 0)
+  {
     command = bluetooth.read();
     Serial.println(command);
-    handleCommand(command);
-  }
 
-  RGB();
-}
+    // Change pin mode only if the new command is different from the previous.
+    switch (command)
+    {
+    case 'F': // Moving the Car Forward
+      moveForward();
+      break;
+    case 'B': // Moving the Car Backward
+      moveBackward();
+      break;
+    case 'L': // Moving the Car Left
+      moveLeft();
+      break;
+    case 'R': // Moving the Car Right
+      moveRight();
+      break;
+    case 'S': // Stop
+      stopCar();
+      break;
+    case 'I': // Moving the Car Forward right
+      moveForwardRight();
+      break;
+    case 'J': // Moving the Car backward right
+      moveBackwardRight();
+      break;
+    case 'G': // Moving the Car Forward left
+      moveForwardLeft();
+      break;
+    case 'H': // Moving the Car backward left
+      moveBackwardLeft();
+      break;
+    case 'u': // Back light OFF
+      turnOffBackLight();
+      break;
+    case 'V': // Horn On
+      turnOnHorn();
+      break;
+    case 'v': // Horn OFF
+      turnOffHorn();
+      break;
+    case 'x': // Turn ON Everything
+      turnOnEverything();
+      break;
+    case 'X': // Turn OFF Everything
+      turnOffEverything();
+      break;
 
-void RGB() {
-  // Update all LEDs and start new fades if any are done
-  for (byte i = 0; i < LED_NUM; i++) {
-    LEDFader *led = &leds[i];
-    led->update();
-
-    if (led->is_fading() == false) {
-      int duration = random(1000, 3000);
-      
-      if (led->get_value() == 0) {
-        byte intensity = random(100, 255);
-        led->fade(intensity, duration);
-      } else {
-        led->fade(0, duration);
+    default:
+      // Get velocity
+      if (command == 'q')
+      {
+        velocity = 255; // Full velocity
+        analogWrite(Enable2, velocity);
+      }
+      else
+      {
+        // Chars '0' - '9' have an integer equivalence of 48 - 57, accordingly.
+        if ((command >= 48) && (command <= 57))
+        {
+          // Subtracting 48 changes the range from 48-57 to 0-9.
+          // Multiplying by 25 changes the range from 0-9 to 0-225.
+          velocity = (command - 48) * 25;
+          analogWrite(Enable2, velocity);
+        }
       }
     }
   }
 }
 
-void handleCommand(char cmd) {
-  switch (cmd) {
-    case 'F':  // Moving the Car Forward
-      digitalWrite(Motor2_Pin1, HIGH);
-      digitalWrite(Motor2_Pin2, LOW);
-      digitalWrite(Motor1_Pin1, HIGH);
-      digitalWrite(Motor1_Pin2, LOW);
-      break;
+void moveForward()
+{
+  digitalWrite(Motor2_Pin1, HIGH);
+  digitalWrite(Motor2_Pin2, LOW);
+  digitalWrite(Motor1_Pin1, HIGH);
+  digitalWrite(Motor1_Pin2, LOW);
+}
 
-    case 'B':  // Moving the Car Backward
-      if (isSafeToMoveBackward()) {
-        digitalWrite(Motor2_Pin1, LOW);
-        digitalWrite(Motor2_Pin2, HIGH);
-        digitalWrite(Motor1_Pin1, LOW);
-        digitalWrite(Motor1_Pin2, HIGH);
-      } else {
-        // If it's not safe, stop the car
-        digitalWrite(Motor2_Pin2, LOW);
-        digitalWrite(Motor2_Pin1, LOW);
-        digitalWrite(Motor1_Pin2, LOW);
-        digitalWrite(Motor1_Pin1, LOW);
-      }
-      break;
+void moveBackward()
+{
+  digitalWrite(Motor2_Pin1, LOW);
+  digitalWrite(Motor2_Pin2, HIGH);
+  digitalWrite(Motor1_Pin1, LOW);
+  digitalWrite(Motor1_Pin2, HIGH);
+}
 
-    case 'L':  // Moving the Car Left
-      digitalWrite(Motor2_Pin1, HIGH);
-      digitalWrite(Motor2_Pin2, LOW);
-      digitalWrite(Motor1_Pin1, LOW);
-      digitalWrite(Motor1_Pin2, LOW);
-      break;
+void moveLeft()
+{
+  digitalWrite(Motor2_Pin1, HIGH);
+  digitalWrite(Motor2_Pin2, LOW);
+  digitalWrite(Motor1_Pin1, LOW);
+  digitalWrite(Motor1_Pin2, LOW);
+}
 
-    case 'R':  // Moving the Car Right
-      digitalWrite(Motor1_Pin2, LOW);
-      digitalWrite(Motor1_Pin1, HIGH);  
-      digitalWrite(Motor2_Pin1, LOW);
-      digitalWrite(Motor2_Pin2, LOW);
-      break;
+void moveRight()
+{
+  digitalWrite(Motor1_Pin2, LOW);
+  digitalWrite(Motor1_Pin1, HIGH);
+  digitalWrite(Motor2_Pin1, LOW);
+  digitalWrite(Motor2_Pin2, LOW);
+}
 
-    case 'S':  // Stop
-      digitalWrite(Motor2_Pin2, LOW);
-      digitalWrite(Motor2_Pin1, LOW);
-      digitalWrite(Motor1_Pin2, LOW);
-      digitalWrite(Motor1_Pin1, LOW);
-      break; 
-
-    case 'I':  // Moving the Car Forward right
-      digitalWrite(Motor2_Pin2, LOW);
-      digitalWrite(Motor2_Pin1, HIGH);
-      digitalWrite(Motor1_Pin2, LOW);
-      digitalWrite(Motor1_Pin1, HIGH);
-      break; 
-
-    case 'J':  // Moving the Car backward right
-      digitalWrite(Motor1_Pin2, LOW);
-      digitalWrite(Motor1_Pin1, HIGH);
-      digitalWrite(Motor2_Pin1, LOW);
-      digitalWrite(Motor2_Pin2, HIGH);
-      break;        
-
-    case 'G':  // Moving the Car Forward left
-      digitalWrite(Motor2_Pin2, LOW);
-      digitalWrite(Motor2_Pin1, HIGH);
-      digitalWrite(Motor1_Pin1, LOW);
-      digitalWrite(Motor1_Pin2, HIGH);
-      break; 
-
-    case 'H':  // Moving the Car backward left
-      digitalWrite(Motor2_Pin1, LOW);
-      digitalWrite(Motor2_Pin2, HIGH);
-      digitalWrite(Motor1_Pin1, LOW);
-      digitalWrite(Motor1_Pin2, HIGH);
-      break;
-
-    case 'W':  // Front light ON 
-      digitalWrite(front_light1, HIGH);
-      digitalWrite(front_light2, HIGH);
-      break;
-
-    case 'w':  // Front light OFF
-      digitalWrite(front_light1, LOW);
-      digitalWrite(front_light2, LOW);
-      break;
-
-    case 'U':  // Back light ON 
-      digitalWrite(back_light1, HIGH);
-      digitalWrite(back_light2, HIGH);
-      break;
-
-    case 'u':  // Back light OFF 
-      digitalWrite(back_light1, LOW);
-      digitalWrite(back_light2, LOW);
-      break; 
-
-    case 'V':  // Horn On
-      tone(horn,494);
-      break; 
-
-    case 'v':  // Horn OFF 
-       noTone(horn);
-      break;   
-      
-    case 'x': // Turn ON Everything
-      // Add your code for turning ON everything
-      break;
-
-    case 'X': // Turn OFF Everything
-      // Add your code for turning OFF everything
-      break;
-
-    default:
-      // Handle any other commands or actions you may need
-      break;
+void stopCar()
+{
+  // Check if the car is moving backward before stopping
+  if (command != 'B')
+  {
+    digitalWrite(Motor2_Pin2, LOW);
+    digitalWrite(Motor2_Pin1, LOW);
+    digitalWrite(Motor1_Pin2, LOW);
+    digitalWrite(Motor1_Pin1, LOW);
   }
 }
 
-bool isSafeToMoveBackward() {
-  // Check the sensor readings and return true if it's safe, false otherwise
-  // Implement your logic here based on the sensor readings
-  // For example, you might check if all sensors detect a distance greater than SAFE_DISTANCE
-  return (LeftSensor > 10) && (FrontSensor > 10) && (RightSensor > 10);
+void moveForwardRight()
+{
+  digitalWrite(Motor2_Pin2, LOW);
+  digitalWrite(Motor2_Pin1, HIGH);
+  digitalWrite(Motor1_Pin2, LOW);
+  digitalWrite(Motor1_Pin1, HIGH);
+}
+
+void moveBackwardRight()
+{
+  digitalWrite(Motor1_Pin2, LOW);
+  digitalWrite(Motor1_Pin1, HIGH);
+  digitalWrite(Motor2_Pin1, LOW);
+  digitalWrite(Motor2_Pin2, HIGH);
+}
+
+void moveForwardLeft()
+{
+  digitalWrite(Motor2_Pin2, LOW);
+  digitalWrite(Motor2_Pin1, HIGH);
+  digitalWrite(Motor1_Pin1, LOW);
+  digitalWrite(Motor1_Pin2, HIGH);
+}
+
+void moveBackwardLeft()
+{
+  digitalWrite(Motor2_Pin1, LOW);
+  digitalWrite(Motor2_Pin2, HIGH);
+  digitalWrite(Motor1_Pin1, LOW);
+  digitalWrite(Motor1_Pin2, HIGH);
+}
+
+void turnOffBackLight()
+{
+  
+}
+
+void turnOnHorn()
+{
+  tone(12, 494);
+}
+
+void turnOffHorn()
+{
+  noTone(12);
+}
+
+void turnOnEverything()
+{
+  
+}
+
+void turnOffEverything()
+{
+  
 }

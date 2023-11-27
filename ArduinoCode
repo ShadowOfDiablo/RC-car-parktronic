@@ -15,8 +15,6 @@ int echo3 = A2;
 int tr4 = 4;
 int echo4 = A3;
 int LED = A4;
-unsigned long previousMillis = 0;
-const long interval = 5000;
 //Front Motor Pins  
 int Enable1 = 6;
 int Motor1_Pin1 = 7;  

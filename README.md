@@ -5,20 +5,18 @@ A remote control car(Bluetooth) that when parking, has to stop itself from crash
 
 Materials you'll need:
 
-Two Arduino Uno boards.
-USB cables for each Arduino.
+Arduino Uno board.
+Bluetooth module.
+USB cables for the Arduino.
 Jumper wires (optional, depending on your setup).
 Steps:
 
-Connect the Arduino Boards:
+Connect the Arduino to the PC
 
 a. Connect one Arduino Uno to your computer via a USB cable.
 
-b. Connect the second Arduino Uno to your computer using another USB cable.
+b. Connect the Bluetooth module to your arduino, I am personally using digital pinds 2 and 3 because there's a problem when I put them on 0 and 1
 
 Identify the Hardware UART Pins:
 
-The Arduino Uno boards have two hardware UART serial ports, labeled as "Serial" and "Serial1."
-
-"Serial" is the primary hardware serial port and is connected to the USB interface for programming and serial monitoring.
-"Serial1" is the secondary hardware serial port.
+And we will be transmitting commands from the bluetooth sender(in this case it's your phone) to the receiver's(arduno's) serial. 

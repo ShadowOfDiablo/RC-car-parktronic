@@ -20,3 +20,12 @@ b. Connect the Bluetooth module to your arduino, I am personally using digital p
 Identify the Hardware UART Pins:
 
 And we will be transmitting commands from the bluetooth sender(in this case it's your phone) to the receiver's(arduno's) serial. 
+
+Last Edit: Here's a picture of how the car looks below: (Its made from whatever I could find as materials)
+I accept criticism, but before doing so, please consider that this was made by 11th grade me without any budget! :D
+<img width="3000" height="4000" alt="IMG_20241001_171425951_HDR" src="https://github.com/user-attachments/assets/9aa8489a-2a5c-4d28-a8e0-7e81b0efd1ba" />
+
+Here's a video two years after I finished working on it! - I think it managed to withstand the test of time :D
+https://github.com/user-attachments/assets/38f5e6fe-7192-47a3-b93c-722c5f9a7365
+
+
